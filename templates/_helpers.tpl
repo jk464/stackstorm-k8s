@@ -141,6 +141,9 @@ Generate list of nodes for Redis with Sentinel connection string, based on numbe
 {{- range $index0 := until $replicas -}}
   {{- if eq $index0 0 -}}
     {{ $.Release.Name }}-redis-node-{{ $index0 }}.{{ $.Release.Name }}-redis-headless.{{ $.Release.Namespace }}.svc.{{ $.Values.clusterDomain }}:{{ $sentinel_port }}?sentinel={{ $master_name }}
+    {{- if $.Values.redis.tls.enabled -}}
+    &ssl=true&ssl_certfile={{ $.Values.st2.tls.mountPath }}/tls.crt&ssl_keyfile={{ $.Values.st2.tls.mountPath }}/tls.key&ssl_ca_certs={{ $.Values.st2.tls.mountPath }}/ca.crt
+    {{- end -}}
   {{- else -}}
     &sentinel_fallback={{ $.Release.Name }}-redis-node-{{ $index0 }}.{{ $.Release.Name }}-redis-headless.{{ $.Release.Namespace }}.svc.{{ $.Values.clusterDomain }}:{{ $sentinel_port }}
   {{- end -}}
