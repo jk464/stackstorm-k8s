@@ -8,6 +8,7 @@ on:
   push:
     branches:
       - master
+      - bugfix/random-k8s-failures
   schedule:
     - cron: "0 1 * * *"
   workflow_dispatch:
@@ -66,3 +67,8 @@ jobs:
         if: ${{ always() }}
         run: |
           kubectl get all
+
+      - name: Get logs of Failed Kubernetes Pods
+        if: ${{ failure() }}
+        run: |
+          for pod in $(kubectl get pods | grep -v NAME | grep -v Running | grep -v Completed | awk '{print $1}'); do echo "Getting logs for pod $pod"; kubectl logs -p $pod; done
