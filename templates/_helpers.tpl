@@ -181,6 +181,12 @@ Reduce duplication of the st2.*.conf volume details
 {{- end }}
 {{- end -}}
 
+{{- define "stackstorm-ha.st2-entrypoint" -}}
+  {{- range $.Values.image.entrypoint }}
+- {{ toYaml . }}
+  {{- end }}
+{{- end -}}
+
 # Override CMD CLI parameters passed to the startup of all pods to add support for /etc/st2/st2.secrets.conf
 {{- define "stackstorm-ha.st2-config-file-parameters" -}}
 - --config-file=/etc/st2/st2.conf
@@ -193,9 +199,10 @@ Reduce duplication of the st2.*.conf volume details
 
 {{- define "stackstorm-ha.init-containers-wait-for-db" -}}
 {{- if index .Values "mongodb" "enabled" }}
-{{- $mongodb_port := (int (index .Values "mongodb" "service" "port")) }}
+{{- $mongodb_port := (int (index .Values "mongodb" "service" "ports" "mongodb")) }}
 - name: wait-for-db
   image: {{ template "stackstorm-ha.utilityImage" . }}
+  imagePullPolicy: {{ .Values.image.pullPolicy }}
   command:
     - 'sh'
     - '-c'
@@ -216,6 +223,7 @@ Reduce duplication of the st2.*.conf volume details
     {{- $rabbitmq_port := (int (index .Values "rabbitmq" "service" "port")) }}
 - name: wait-for-queue
   image: {{ template "stackstorm-ha.utilityImage" . }}
+  imagePullPolicy: {{ .Values.image.pullPolicy }}
   command:
     - 'sh'
     - '-c'
@@ -344,7 +352,8 @@ Merge packs and virtualenvs from st2 with those from st2packs images
     - |
       /bin/cp -aR /opt/stackstorm/packs/. /opt/stackstorm/packs-shared &&
       /bin/cp -aR /opt/stackstorm/virtualenvs/. /opt/stackstorm/virtualenvs-shared
-  {{- with $.Values.securityContext }}
+  {{- with .securityContext | default $.Values.st2actionrunner.securityContext | default $.Values.securityContext }}
+  {{/* st2actionrunner is likely the most permissive so use that if defined. */}}
   securityContext: {{- toYaml . | nindent 8 }}
   {{- end }}
     {{- end }}
@@ -365,7 +374,8 @@ Merge packs and virtualenvs from st2 with those from st2packs images
     - |
       /bin/cp -aR /opt/stackstorm/packs/. /opt/stackstorm/packs-shared &&
       /bin/cp -aR /opt/stackstorm/virtualenvs/. /opt/stackstorm/virtualenvs-shared
-  {{- with .Values.securityContext }}
+  {{- with .Values.st2actionrunner.securityContext | default .Values.securityContext }}
+  {{/* st2actionrunner is likely the most permissive so use that if defined. */}}
   securityContext: {{- toYaml . | nindent 8 }}
   {{- end }}
   {{- end }}
@@ -384,7 +394,8 @@ Merge packs and virtualenvs from st2 with those from st2packs images
     - '-ec'
     - |
       /bin/cp -aR /opt/stackstorm/configs/. /opt/stackstorm/configs-shared
-  {{- with .Values.securityContext }}
+  {{- with .Values.st2actionrunner.securityContext | default .Values.securityContext }}
+  {{/* st2actionrunner is likely the most permissive so use that if defined. */}}
   securityContext: {{- toYaml . | nindent 8 }}
   {{- end }}
   {{- end }}
@@ -410,4 +421,55 @@ Create the custom env list for each deployment
 - name: {{ $env | quote }}
   value: {{ $value | quote }}
   {{- end }}
+{{- end -}}
+
+{{/*
+Generate CA
+*/}}
+{{- define "stackstorm-ha.internal_tls.ca" }}
+data:
+{{- if (default false ((($.Values.secret).ca))) }}
+  tls.crt: "{{ .Values.secret.ca.crt }}"
+  tls.key: "{{ .Values.secret.ca.key }}"
+{{- else }}
+{{- $ca := genCA "StackStorm CA" 365 }}
+  tls.crt: "{{ $ca.Cert | b64enc}}"
+  tls.key: "{{ $ca.Key | b64enc}}"
+{{- end -}}
+{{- end -}}
+
+{{/*
+Set up values for Internal TLS
+*/}}
+{{- define "stackstorm-ha.internal_tls.cert_volume.mount" -}}
+{{- if or .Values.st2.tls.enabled .Values.mongodb.tls.enabled .Values.rabbitmq.tls.enabled }}
+- name: {{ .Values.st2.tls.secretName }}
+  mountPath: {{ .Values.st2.tls.mountPath }}/
+  readOnly: true
+{{- end }}
+{{- end -}}
+{{- define "stackstorm-ha.internal_tls.cert_volume.volume" -}}
+{{- if or .Values.st2.tls.enabled .Values.mongodb.tls.enabled .Values.rabbitmq.tls.enabled }}
+- name: {{ .Values.st2.tls.secretName }}
+  secret:
+    secretName: {{ .Values.st2.tls.secretName }}
+{{- end }}
+{{- end -}}
+
+{{/*
+Define st2web ports
+*/}}
+{{- define "stackstorm-ha.st2web.http_port" -}}
+{{- if ne (default 0 ((($.Values.st2web.securityContext).runAsUser) | int)) 0 -}}
+8080
+{{- else -}}
+80
+{{- end -}}
+{{- end -}}
+{{- define "stackstorm-ha.st2web.https_port" -}}
+{{- if ne (default 0 ((($.Values.st2web.securityContext).runAsUser) | int)) 0 -}}
+8443
+{{- else -}}
+443
+{{- end -}}
 {{- end -}}
