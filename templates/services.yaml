@@ -48,11 +48,7 @@ spec:
   {{- end }}
   ports:
   - protocol: TCP
-    {{- if and .Values.st2.tls.enabled .Values.st2api.tls.enabled }}
-    port: 9111
-    {{- else }}
     port: 9101
-    {{- end }}
 
 ---
 kind: Service
@@ -78,11 +74,7 @@ spec:
   {{- end }}
   ports:
   - protocol: TCP
-    {{- if and .Values.st2.tls.enabled .Values.st2stream.tls.enabled }}
-    port: 9112
-    {{- else }}
     port: 9102
-    {{- end }}
 
 ---
 kind: Service

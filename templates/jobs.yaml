@@ -145,11 +145,7 @@ spec:
           - 'sh'
           - '-c'
           - >
-            {{- if and .Values.st2.tls.enabled .Values.st2api.tls.enabled }}
-            until nc -z -w 2 {{ .Release.Name }}-st2api 9111 && echo st2api ready;
-            {{- else }}
             until nc -z -w 2 {{ .Release.Name }}-st2api 9101 && echo st2api ready;
-            {{- end }}
               do sleep 2;
             done
       # Sidecar container for generating st2client config with st2 username & password pair and sharing produced file with the main container
