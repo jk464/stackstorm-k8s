@@ -181,6 +181,12 @@ Reduce duplication of the st2.*.conf volume details
 {{- end }}
 {{- end -}}
 
+{{- define "stackstorm-ha.st2-entrypoint" -}}
+  {{- range $.Values.image.entrypoint }}
+- {{ toYaml . }}
+  {{- end }}
+{{- end -}}
+
 # Override CMD CLI parameters passed to the startup of all pods to add support for /etc/st2/st2.secrets.conf
 {{- define "stackstorm-ha.st2-config-file-parameters" -}}
 - --config-file=/etc/st2/st2.conf
@@ -196,6 +202,7 @@ Reduce duplication of the st2.*.conf volume details
 {{- $mongodb_port := (int (index .Values "mongodb" "service" "port")) }}
 - name: wait-for-db
   image: {{ template "stackstorm-ha.utilityImage" . }}
+  imagePullPolicy: {{ .Values.image.pullPolicy }}
   command:
     - 'sh'
     - '-c'
@@ -216,6 +223,7 @@ Reduce duplication of the st2.*.conf volume details
     {{- $rabbitmq_port := (int (index .Values "rabbitmq" "service" "port")) }}
 - name: wait-for-queue
   image: {{ template "stackstorm-ha.utilityImage" . }}
+  imagePullPolicy: {{ .Values.image.pullPolicy }}
   command:
     - 'sh'
     - '-c'
@@ -342,8 +350,8 @@ Merge packs and virtualenvs from st2 with those from st2packs images
     - 'sh'
     - '-ec'
     - |
-      /bin/cp -aR /opt/stackstorm/packs/. /opt/stackstorm/packs-shared &&
-      /bin/cp -aR /opt/stackstorm/virtualenvs/. /opt/stackstorm/virtualenvs-shared
+      /bin/cp -dR /opt/stackstorm/packs/. /opt/stackstorm/packs-shared &&
+      /bin/cp -dR /opt/stackstorm/virtualenvs/. /opt/stackstorm/virtualenvs-shared
   {{- with $.Values.securityContext }}
   securityContext: {{- toYaml . | nindent 8 }}
   {{- end }}
@@ -363,8 +371,8 @@ Merge packs and virtualenvs from st2 with those from st2packs images
     - 'sh'
     - '-ec'
     - |
-      /bin/cp -aR /opt/stackstorm/packs/. /opt/stackstorm/packs-shared &&
-      /bin/cp -aR /opt/stackstorm/virtualenvs/. /opt/stackstorm/virtualenvs-shared
+      /bin/cp -dR /opt/stackstorm/packs/. /opt/stackstorm/packs-shared &&
+      /bin/cp -dR /opt/stackstorm/virtualenvs/. /opt/stackstorm/virtualenvs-shared
   {{- with .Values.securityContext }}
   securityContext: {{- toYaml . | nindent 8 }}
   {{- end }}
@@ -383,7 +391,7 @@ Merge packs and virtualenvs from st2 with those from st2packs images
     - 'sh'
     - '-ec'
     - |
-      /bin/cp -aR /opt/stackstorm/configs/. /opt/stackstorm/configs-shared
+      /bin/cp -dR /opt/stackstorm/configs/. /opt/stackstorm/configs-shared
   {{- with .Values.securityContext }}
   securityContext: {{- toYaml . | nindent 8 }}
   {{- end }}
@@ -410,4 +418,22 @@ Create the custom env list for each deployment
 - name: {{ $env | quote }}
   value: {{ $value | quote }}
   {{- end }}
+{{- end -}}
+
+{{/*
+Define st2web ports
+*/}}
+{{- define "stackstorm-ha.st2web.http_port" -}}
+{{- if ne (default 0 ((($.Values.st2web.securityContext).runAsUser) | int)) 0 -}}
+8080
+{{- else -}}
+80
+{{- end -}}
+{{- end -}}
+{{- define "stackstorm-ha.st2web.https_port" -}}
+{{- if ne (default 0 ((($.Values.st2web.securityContext).runAsUser) | int)) 0 -}}
+8443
+{{- else -}}
+443
+{{- end -}}
 {{- end -}}

@@ -1,6 +1,18 @@
 # Changelog
 
-## In Development
+## Development
+* Enable running all pods/containers as non-root without any escalation privileges (#400) (by @jk464 @Stealthii)
+
+## v1.1.0
+* Fix syntax with ensure-packs-volumes-are-writable job (#403, #411) (by @skiedude)
+* Add securityContext support to custom st2packs images, extra_hooks jobs; Also fallback to st2actionrunner securityContext for misc init container jobs and pods. (#410) (by @cognifloyd)
+* Stop generating the DataStore Secret (#385) and checksum labels (#391) when existing secret provided or disabled (by @bmarick)
+* Stop generating the checksum labels for Auth Secret (#392) when existing secret provided or disabled (by @bmarick)
+* Use `image.pullPolicy` for all containers including init containers that use `image.utilityImage`. (#397) (by @jk464)
+* Add new `image.entrypoint` value to simplify using a custom entry point like `dumb-init` or `pid1` (if installed in the image). (#413) (by @cognifloyd)
+* Improve Deployments migration in `migrations/v1.0/standardize-labels.sh` by temporarily orphaning the old ReplicaSets. (#412) (by @cognifloyd)
+
+## v1.0.0
 * Bump to latest CircleCI orb versions (kubernetes@1.3.1 and helm@3.0.0 by @ZoeLeah)
 * Remove unsupported k8s Versions (1.24.x and 1.25.x by @ZoeLeah)
 * Update and add new K8s versions (1.28.3, 1.27.7 and 1.26.10 by @ZoeLeah)
